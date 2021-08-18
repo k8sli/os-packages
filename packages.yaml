@@ -18,6 +18,7 @@ kubespray:
     - device-mapper-libs
   apt:
     - python-apt
+    - python3-apt
     - aufs-tools
     - apt-transport-https
     - software-properties-common
@@ -38,6 +39,7 @@ yum:
   - createrepo
   - epel-release
   - nc
+  - httpd-tools
 
 apt:
   - nfs-common
@@ -49,15 +51,13 @@ apt:
   - dpkg-dev
   - gnupg2
   - netcat
+  - apache2-utils
 
 centos7:
   - containerd.io-1.4.6
 
 ubuntu:
   - containerd.io=1.4.6-1
-
-debian9:
-  - containerd.io=1.4.3-1
 
 debian10:
   - containerd.io=1.4.6-1
