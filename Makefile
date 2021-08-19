@@ -19,3 +19,4 @@ merge-dockerfile:
 	@echo 'FROM scratch' >> build/Dockerfile.all
 	@find build -type f -name 'Dockerfile.os.*' \
 	| sort | xargs -L1 grep 'COPY --from=os-' >> build/Dockerfile.all
+	@echo 'COPY repos /repos' >> build/Dockerfile.all
