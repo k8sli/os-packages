@@ -11,7 +11,7 @@ RUN yum install -q -y ${BUILD_TOOLS} \
 WORKDIR /centos/$OS_VERSION/os
 COPY packages.yaml .
 COPY --from=mikefarah/yq:4.11.1 /usr/bin/yq /usr/bin/yq
-RUN yq eval '.common[],.yum[],.centos7[],.kubespray.yum[]' packages.yaml | sort -u > packages.list \
+RUN yq eval '.common[],.yum[],.centos7[],.kubespray.common[],.kubespray.yum[]' packages.yaml | sort -u > packages.list \
     && rpm -qa >> packages.list
 
 RUN ARCH=$(uname -m) \

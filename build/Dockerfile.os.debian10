@@ -15,7 +15,7 @@ WORKDIR /debian/${TARGETARCH}/${OS_VERSION}
 COPY packages.yaml .
 
 COPY --from=mikefarah/yq:4.11.1 /usr/bin/yq /usr/bin/yq
-RUN yq eval '.common[],.apt[],.kubespray.apt[]' packages.yaml | sort -u > packages.list \
+RUN yq eval '.common[],.apt[],.kubespray.common[],.kubespray.apt[]' packages.yaml | sort -u > packages.list \
     && dpkg --get-selections | grep -v deinstall | cut -f1 | cut -d ':' -f1 >> packages.list \
     && yq eval '.debian10[]' packages.yaml | sort -u | xargs apt-get install --reinstall --print-uris | awk -F "'" '{print $2}' | xargs -L1 wget -q -k
 
