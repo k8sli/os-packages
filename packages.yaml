@@ -12,6 +12,10 @@ kubespray:
     - ipvsadm
     - ipset
     - conntrack
+    - net-tools
+    - rsync
+    - chrony
+
   yum:
     - nss
     - libselinux-python
