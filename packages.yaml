@@ -17,6 +17,8 @@ kubespray:
     - nss
     - libselinux-python
     - device-mapper-libs
+    - conntrack-tools
+
   apt:
     - python-apt
     - python3-apt
