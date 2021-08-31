@@ -1,0 +1,21 @@
+FROM centos:8 as os-centos8
+ARG OS_VERSION=8
+ARG DOCKER_MIRROR_URL="https://download.docker.com"
+ARG BUILD_TOOLS="yum-utils createrepo epel-release wget"
+
+RUN yum install -q -y ${BUILD_TOOLS} \
+    && yum-config-manager --add-repo ${DOCKER_MIRROR_URL}/linux/centos/docker-ce.repo \
+    && yum makecache
+
+WORKDIR /centos/$OS_VERSION/os
+COPY packages.yaml .
+COPY --from=mikefarah/yq:4.11.1 /usr/bin/yq /usr/bin/yq
+RUN yq eval '.common[],.yum[],.centos8[],.kubespray.common[],.kubespray.yum[]' packages.yaml > packages.list \
+    && sort -u packages.list | xargs repotrack --urls | sort -u > packages.urls
+
+RUN ARCH=$(uname -m) \
+    && wget -q -x -P ${ARCH} -i packages.urls \
+    && createrepo -d ${ARCH}
+
+FROM scratch
+COPY --from=os-centos8 /centos /centos
