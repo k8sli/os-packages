@@ -2,23 +2,41 @@
 name: Build os-packages image
 on:
   push:
-    branches: [main, release-*]
-    paths-ignore:
-      - 'docs/**'
     tag:
       - 'v*'
-  release:
-    branches: [main, release-*]
-
+    branch: [main, release-*, master]
+  workflow_dispatch:
 env:
   IMAGE_REGISTRY: "ghcr.io"
   REGISTRY_USER: "${{ github.repository_owner }}"
   REGISTRY_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-  OS_PACKAGES_IMAGE_REPO: "ghcr.io/${{ github.repository_owner }}/os-packages"
+  IMAGE_REPO: "ghcr.io/${{ github.repository_owner }}"
 
 jobs:
   build:
     runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os_name: ubuntu-bionic
+            image_name: os-packages-ubuntu18
+            dockerfile: build/Dockerfile.os.ubuntu18
+          - os_name: ubuntu-focal
+            image_name: os-packages-ubuntu20
+            dockerfile: build/Dockerfile.os.ubuntu20
+          - os_name: centos-7
+            image_name: os-packages-centos7
+            dockerfile: build/Dockerfile.os.centos7
+          - os_name: centos-8
+            image_name: os-packages-centos8
+            dockerfile: build/Dockerfile.os.centos8
+          - os_name: debian-buster
+            image_name: os-packages-debian10
+            dockerfile: build/Dockerfile.os.debian10
+          - os_name: debian-stretch
+            image_name: os-packages-debian9
+            dockerfile: build/Dockerfile.os.debian9
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -31,14 +49,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
-
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
 
       - name: Log in to GitHub Docker Registry
         uses: docker/login-action@v1
@@ -53,42 +63,110 @@ jobs:
           git describe --tags --always | sed 's/^/IMAGE_TAG=/' >> $GITHUB_ENV
           git branch --show-current | sed 's/^/BRANCH_NAME=/' >> $GITHUB_ENV
           git branch --show-current | sed 's/master/latest/;s/main/latest/;s/^/IMAGE_TAG_BY_BRANCH=/' >> $GITHUB_ENV
-          source $GITHUB_ENV
-          make merge-dockerfile
-          cat build/* .github/workflows/build.yaml packages.yaml \
-          | md5sum | tr -d '\ -' | sed 's/^/OS_PACKAGES_MD5=md5-/' >> $GITHUB_ENV
-          if skopeo inspect docker://${OS_PACKAGES_IMAGE_REPO}:${BRANCH_NAME} > mainfest.json; then
-            jq -r '.Labels.MD5' mainfest.json | sed 's/^/LATEST_OS_PACKAGES_MD5=/' >> $GITHUB_ENV
-          else
-            echo 'LATEST_OS_PACKAGES_MD5=null' >> $GITHUB_ENV
-          fi
-
-      - name: Replace Dockerfile if MD5 not update
-        if: ${{ env.OS_PACKAGES_MD5 == env.LATEST_OS_PACKAGES_MD5 }}
-        run: |
-          echo "FROM ${{ env.OS_PACKAGES_IMAGE_REPO }}:${{ env.OS_PACKAGES_MD5 }}" > build/Dockerfile.all
 
       - name: Build and push os-package images
         uses: docker/build-push-action@v2
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          file: build/Dockerfile.all
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new
-          labels: MD5=${{ env.OS_PACKAGES_MD5 }}
           tags: |
-            ${{ env.OS_PACKAGES_IMAGE_REPO }}:${{ env.IMAGE_TAG }}
-            ${{ env.OS_PACKAGES_IMAGE_REPO }}:${{ env.OS_PACKAGES_MD5 }}
-            ${{ env.OS_PACKAGES_IMAGE_REPO }}:${{ env.BRANCH_NAME }}
-            ${{ env.OS_PACKAGES_IMAGE_REPO }}:${{ env.IMAGE_TAG_BY_BRANCH }}
+            ${{ env.IMAGE_REPO }}/${{ matrix.image_name }}:${{ env.IMAGE_TAG }}
 
-      - name: Move new cache
+      - name: Gen new Dockerfile
+        shell: bash
         run: |
-          rm -rf /tmp/.buildx-cache
-          mkdir -p /tmp/.buildx-cache-new
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          echo -e "FROM scratch\nCOPY --from=${{ env.IMAGE_REPO }}/${{ matrix.image_name }}:${{ env.IMAGE_TAG }} / /nginx/" > Dockerfile
 
-      # debug action
-      # - uses: mxschmitt/action-tmate@v3
+      - name: Build kubeplay image to local
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          outputs: type=local,dest=./
+
+      - name: Prepare for upload package
+        shell: bash
+        run: |
+          mv linux_amd64 resources
+          tar -I pigz -cf resources-${{ matrix.image_name }}-${IMAGE_TAG}-amd64.tar.gz resources --remove-files
+          mv linux_arm64 resources
+          tar -I pigz -cf resources-${{ matrix.image_name }}-${IMAGE_TAG}-arm64.tar.gz resources --remove-files
+          sha256sum resources-${{ matrix.image_name }}-${IMAGE_TAG}-{amd64,arm64}.tar.gz > resources-${{ matrix.image_name }}-${IMAGE_TAG}.sha256sum.txt
+
+      - name: Release and upload packages
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            resources-${{ matrix.image_name }}-${{ env.IMAGE_TAG }}.sha256sum.txt
+            resources-${{ matrix.image_name }}-${{ env.IMAGE_TAG }}-amd64.tar.gz
+            resources-${{ matrix.image_name }}-${{ env.IMAGE_TAG }}-arm64.tar.gz
+
+  upload:
+    needs: [build]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          # fetch all git repo tag for define image tag
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Log in to GitHub Docker Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ env.REGISTRY_USER }}
+          password: ${{ env.REGISTRY_TOKEN }}
+
+      - name: Prepare for build images
+        shell: bash
+        run: |
+          git describe --tags --always | sed 's/^/IMAGE_TAG=/' >> $GITHUB_ENV
+          source $GITHUB_ENV
+          echo "FROM scratch" > Dockerfile
+          echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-ubuntu18:${IMAGE_TAG} / /" >> Dockerfile
+          echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-ubuntu20:${IMAGE_TAG} / /" >> Dockerfile
+          echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-centos7:${IMAGE_TAG} / /" >> Dockerfile
+          echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-centos8:${IMAGE_TAG} / /" >> Dockerfile
+          echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-debian9:${IMAGE_TAG} / /" >> Dockerfile
+          echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-debian10:${IMAGE_TAG} / /" >> Dockerfile
+
+      - name: Build kubeplay image to local
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          outputs: type=local,dest=./
+
+      - name: Prepare for upload package
+        shell: bash
+        run: |
+          mv linux_amd64 resources
+          tar -I pigz -cf resources-all-${IMAGE_TAG}-amd64.tar.gz resources --remove-files
+          mv linux_arm64 resources
+          tar -I pigz -cf resources-all-${IMAGE_TAG}-arm64.tar.gz resources --remove-files
+          sha256sum resources-all-${IMAGE_TAG}-{amd64,arm64}.tar.gz > resources-all-${IMAGE_TAG}.sha256sum.txt
+
+      - name: Release and upload packages
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            resources-all-${{ env.IMAGE_TAG }}.sha256sum.txt
+            resources-all-${{ env.IMAGE_TAG }}-amd64.tar.gz
+            resources-all-${{ env.IMAGE_TAG }}-arm64.tar.gz

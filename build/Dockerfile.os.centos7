@@ -10,12 +10,12 @@ RUN yum install -q -y ${BUILD_TOOLS} \
 WORKDIR /centos/$OS_VERSION/os
 COPY packages.yaml .
 COPY --from=mikefarah/yq:4.11.1 /usr/bin/yq /usr/bin/yq
-RUN yq eval '.common[],.yum[],.centos7[],.kubespray.common[],.kubespray.yum[]' packages.yaml > packages.list \
-    && sort -u packages.list | xargs repotrack --urls | sort -u > packages.urls
+RUN yq eval '.common[],.yum[],.centos7[],.kubespray.common[],.kubespray.yum[]' packages.yaml > packages.list
 
 RUN ARCH=$(uname -m) \
-    && wget -q -x -P ${ARCH} -i packages.urls \
+    && sort -u packages.list | xargs repotrack -p ${ARCH} \
     && createrepo -d ${ARCH}
 
 FROM scratch
 COPY --from=os-centos7 /centos /centos
+COPY repos/CentOS-All-in-One.repo /repos/CentOS-7-All-in-One.repo
