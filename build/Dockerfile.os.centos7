@@ -1,21 +1,20 @@
 FROM centos:7.9.2009 as os-centos7
 ARG OS_VERSION=7
-ARG DOCKER_MIRROR_URL="https://download.docker.com"
 ARG BUILD_TOOLS="yum-utils createrepo epel-release wget"
 
 RUN yum install -q -y ${BUILD_TOOLS} \
-    && yum-config-manager --add-repo ${DOCKER_MIRROR_URL}/linux/centos/docker-ce.repo \
+    && yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo \
     && yum makecache
 
 WORKDIR /centos/$OS_VERSION/os
 COPY packages.yaml .
 COPY --from=mikefarah/yq:4.11.1 /usr/bin/yq /usr/bin/yq
-RUN yq eval '.common[],.yum[],.centos7[],.kubespray.common[],.kubespray.yum[]' packages.yaml > packages.list \
-    && sort -u packages.list | xargs repotrack --urls | sort -u > packages.urls
+RUN yq eval '.common[],.yum[],.centos7[],.kubespray.common[],.kubespray.yum[]' packages.yaml > packages.list
 
 RUN ARCH=$(uname -m) \
-    && wget -q -x -P ${ARCH} -i packages.urls \
+    && sort -u packages.list | xargs repotrack -p ${ARCH} \
     && createrepo -d ${ARCH}
 
 FROM scratch
-COPY --from=os-centos7 /centos /centos
+COPY --from=os-centos7 /centos /resources/nginx/centos
+COPY repos/CentOS-All-in-One.repo /resources/nginx/repos/CentOS-7-All-in-One.repo

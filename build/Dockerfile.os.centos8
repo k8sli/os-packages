@@ -1,0 +1,24 @@
+FROM centos:8 as os-centos8
+ARG OS_VERSION=8
+ARG BUILD_TOOLS="yum-utils createrepo epel-release wget"
+
+RUN ARCH=$(uname -m) \
+    && dnf install -q -y ${BUILD_TOOLS} \
+    && dnf install -q -y http://mirror.centos.org/centos/8-stream/AppStream/${ARCH}/os/Packages/modulemd-tools-0.7-4.el8.noarch.rpm \
+    && yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo \
+    && dnf makecache
+
+WORKDIR /centos/$OS_VERSION/os
+COPY packages.yaml .
+COPY --from=mikefarah/yq:4.11.1 /usr/bin/yq /usr/bin/yq
+RUN yq eval '.common[],.yum[],.centos8[],.kubespray.common[],.kubespray.yum[]' packages.yaml > packages.list
+
+RUN ARCH=$(uname -m) \
+    && sort -u packages.list | xargs repotrack --destdir ${ARCH} \
+    && createrepo_c ${ARCH} \
+    && repo2module -s stable ${ARCH} ${ARCH}/modules.yaml \
+    && modifyrepo_c --mdtype=modules ${ARCH}/modules.yaml ${ARCH}/repodata
+
+FROM scratch
+COPY --from=os-centos8 /centos /resources/nginx/centos
+COPY repos/CentOS-All-in-One.repo /resources/nginx/repos/CentOS-8-All-in-One.repo
