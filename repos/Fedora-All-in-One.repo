@@ -1,0 +1,6 @@
+[docker-ce]
+name=docker-ce
+baseurl=http://127.0.0.1:8080/fedora/$releasever/os/$basearch/
+enabled=1
+gpgcheck=0
+sslverify=0

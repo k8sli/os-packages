@@ -19,22 +19,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os_name: ubuntu-bionic
-            image_name: os-packages-ubuntu18
-            dockerfile: build/Dockerfile.os.ubuntu18
-          - os_name: ubuntu-focal
-            image_name: os-packages-ubuntu20
-            dockerfile: build/Dockerfile.os.ubuntu20
-          - os_name: centos-7
+          - name: ubuntu-bionic
+            image_name: os-packages-ubuntu1804
+            dockerfile: build/Dockerfile.os.ubuntu1804
+          - name: ubuntu-focal
+            image_name: os-packages-ubuntu2004
+            dockerfile: build/Dockerfile.os.ubuntu2004
+          - name: centos-7
             image_name: os-packages-centos7
             dockerfile: build/Dockerfile.os.centos7
-          - os_name: centos-8
+          - name: centos-8
             image_name: os-packages-centos8
             dockerfile: build/Dockerfile.os.centos8
-          - os_name: debian-buster
+          - name: debian-buster
             image_name: os-packages-debian10
             dockerfile: build/Dockerfile.os.debian10
-          - os_name: debian-stretch
+          - name: debian-stretch
             image_name: os-packages-debian9
             dockerfile: build/Dockerfile.os.debian9
     steps:
@@ -88,9 +88,9 @@ jobs:
       - name: Prepare for upload package
         shell: bash
         run: |
-          mv linux_amd64 resources
+          mv linux_amd64/resources resources
           tar -I pigz -cf resources-${{ matrix.image_name }}-${IMAGE_TAG}-amd64.tar.gz resources --remove-files
-          mv linux_arm64 resources
+          mv linux_arm64/resources resources
           tar -I pigz -cf resources-${{ matrix.image_name }}-${IMAGE_TAG}-arm64.tar.gz resources --remove-files
           sha256sum resources-${{ matrix.image_name }}-${IMAGE_TAG}-{amd64,arm64}.tar.gz > resources-${{ matrix.image_name }}-${IMAGE_TAG}.sha256sum.txt
 
@@ -134,8 +134,8 @@ jobs:
           git describe --tags --always | sed 's/^/IMAGE_TAG=/' >> $GITHUB_ENV
           source $GITHUB_ENV
           echo "FROM scratch" > Dockerfile
-          echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-ubuntu18:${IMAGE_TAG} / /" >> Dockerfile
-          echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-ubuntu20:${IMAGE_TAG} / /" >> Dockerfile
+          echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-ubuntu1804:${IMAGE_TAG} / /" >> Dockerfile
+          echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-ubuntu2004:${IMAGE_TAG} / /" >> Dockerfile
           echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-centos7:${IMAGE_TAG} / /" >> Dockerfile
           echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-centos8:${IMAGE_TAG} / /" >> Dockerfile
           echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-debian9:${IMAGE_TAG} / /" >> Dockerfile

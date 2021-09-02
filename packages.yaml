@@ -42,7 +42,6 @@ yum:
   - nfs-utils
   - yum-utils
   - createrepo
-  - epel-release
   - nc
   - httpd-tools
 
@@ -62,6 +61,10 @@ centos7:
   - libselinux-python
   - containerd.io-1.4.6
 
+centos8:
+  - containerd.io-1.4.6
+  - libselinux-python3
+
 ubuntu:
   - containerd.io=1.4.6-1
 
@@ -71,5 +74,12 @@ debian9:
 debian10:
   - containerd.io=1.4.6-1
 
-centos8:
+fedora:
+  - python3
   - libselinux-python3
+
+fedora33:
+  - containerd.io-1.4.6-3.1.fc33
+
+fedora34:
+  - containerd.io-1.4.6-3.1.fc34
