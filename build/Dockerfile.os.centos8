@@ -17,5 +17,5 @@ RUN ARCH=$(uname -m) \
     && createrepo -d ${ARCH}
 
 FROM scratch
-COPY --from=os-centos8 /centos /centos
-COPY repos/CentOS-All-in-One.repo /repos/CentOS-8-All-in-One.repo
+COPY --from=os-centos8 /centos /resources/nginx/centos
+COPY repos/CentOS-All-in-One.repo /resources/nginx/repos/CentOS-8-All-in-One.repo

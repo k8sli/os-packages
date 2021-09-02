@@ -61,8 +61,6 @@ jobs:
         shell: bash
         run: |
           git describe --tags --always | sed 's/^/IMAGE_TAG=/' >> $GITHUB_ENV
-          git branch --show-current | sed 's/^/BRANCH_NAME=/' >> $GITHUB_ENV
-          git branch --show-current | sed 's/master/latest/;s/main/latest/;s/^/IMAGE_TAG_BY_BRANCH=/' >> $GITHUB_ENV
 
       - name: Build and push os-package images
         uses: docker/build-push-action@v2
@@ -77,7 +75,7 @@ jobs:
       - name: Gen new Dockerfile
         shell: bash
         run: |
-          echo -e "FROM scratch\nCOPY --from=${{ env.IMAGE_REPO }}/${{ matrix.image_name }}:${{ env.IMAGE_TAG }} / /nginx/" > Dockerfile
+          echo -e "FROM scratch\nCOPY --from=${{ env.IMAGE_REPO }}/${{ matrix.image_name }}:${{ env.IMAGE_TAG }} / /" > Dockerfile
 
       - name: Build kubeplay image to local
         uses: docker/build-push-action@v2
@@ -154,9 +152,9 @@ jobs:
       - name: Prepare for upload package
         shell: bash
         run: |
-          mv linux_amd64 resources
+          mv linux_amd64/resources resources
           tar -I pigz -cf resources-all-${IMAGE_TAG}-amd64.tar.gz resources --remove-files
-          mv linux_arm64 resources
+          mv linux_arm64/resources resources
           tar -I pigz -cf resources-all-${IMAGE_TAG}-arm64.tar.gz resources --remove-files
           sha256sum resources-all-${IMAGE_TAG}-{amd64,arm64}.tar.gz > resources-all-${IMAGE_TAG}.sha256sum.txt
 

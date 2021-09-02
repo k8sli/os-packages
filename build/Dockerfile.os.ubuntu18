@@ -23,4 +23,4 @@ RUN wget -q -x -P ${OS_VERSION} -i packages.urls \
     && dpkg-scanpackages ${OS_VERSION} | gzip -9c > ${OS_VERSION}/Packages.gz
 
 FROM scratch
-COPY --from=os-bionic /ubuntu /ubuntu
+COPY --from=os-bionic /ubuntu /resources/nginx/ubuntu

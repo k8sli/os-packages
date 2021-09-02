@@ -24,4 +24,4 @@ RUN wget -q -x -P ${OS_VERSION} -i packages.urls \
     && dpkg-scanpackages ${OS_VERSION} | gzip -9c > ${OS_VERSION}/Packages.gz
 
 FROM scratch
-COPY --from=os-buster /debian /debian
+COPY --from=os-buster /debian /resources/nginx/debian
