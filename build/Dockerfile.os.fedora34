@@ -1,14 +1,6 @@
-FROM fedora:34 as os-fedora34
-ARG OS_VERSION=34
-ARG BUILD_TOOLS="yum-utils createrepo findutils"
+FROM ghcr.io/k8sli/fedora-base:34 as os-fedora34
 
-RUN dnf install -q -y ${BUILD_TOOLS} \
-    && yum-config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo \
-    && dnf makecache -q
-
-WORKDIR /fedora/$OS_VERSION/os
 COPY packages.yaml .
-COPY --from=mikefarah/yq:4.11.1 /usr/bin/yq /usr/bin/yq
 RUN yq eval '.common[],.yum[],.fedora[],.fedora34[],.kubespray.common[],.kubespray.yum[]' packages.yaml > packages.list
 
 RUN ARCH=$(uname -m) \
