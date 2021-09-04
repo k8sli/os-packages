@@ -31,6 +31,12 @@ jobs:
           - name: centos-8
             image_name: os-packages-centos8
             dockerfile: build/Dockerfile.os.centos8
+          - name: fedora33
+            image_name: os-packages-fedora33
+            dockerfile: build/Dockerfile.os.fedora33
+          - name: fedora34
+            image_name: os-packages-fedora34
+            dockerfile: build/Dockerfile.os.fedora34
           - name: debian-buster
             image_name: os-packages-debian10
             dockerfile: build/Dockerfile.os.debian10
@@ -138,6 +144,8 @@ jobs:
           echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-ubuntu2004:${IMAGE_TAG} / /" >> Dockerfile
           echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-centos7:${IMAGE_TAG} / /" >> Dockerfile
           echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-centos8:${IMAGE_TAG} / /" >> Dockerfile
+          echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-fedora33:${IMAGE_TAG} / /" >> Dockerfile
+          echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-fedora34:${IMAGE_TAG} / /" >> Dockerfile
           echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-debian9:${IMAGE_TAG} / /" >> Dockerfile
           echo "COPY --from=${{ env.IMAGE_REPO }}/os-packages-debian10:${IMAGE_TAG} / /" >> Dockerfile
 
